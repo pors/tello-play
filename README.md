@@ -1,6 +1,8 @@
-# Tello Play
+# Dronelab.dev: Tello Play
 
 This repository contains basic scripts to control the Tello drone using Python. It uses the `djitellopy` library to communicate with the Tello drone.
+
+These scripts accompany the blog posts on [dronelab.dev](https://dronelab.dev).
 
 ## Table of Contents
 
