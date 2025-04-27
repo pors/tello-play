@@ -24,6 +24,7 @@ class FrontEnd(object):
         - Arrow keys: Forward, backward, left and right.
         - A and D: Counter clockwise and clockwise rotations (yaw)
         - W and S: Up and down.
+        - P: Take a snapshot
 
     保持Tello画面显示并用键盘移动它
     按下ESC键退出
