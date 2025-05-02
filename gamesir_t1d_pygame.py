@@ -3,6 +3,9 @@ import asyncio
 import time
 from bleak import BleakClient, BleakScanner
 
+# The characteristic we want to read. This is the same for all GameSir T1d controllers.
+# The UUID is a standard Bluetooth GATT characteristic for HID devices.
+CHARACTERISTIC_UUID = "00008651-0000-1000-8000-00805f9b34fb"
 
 class GameSirT1d:
     """Raw GameSir T1d controller interface."""
@@ -203,9 +206,7 @@ class GameSirT1dPygame:
                         while self._running and self._connection_state == "connected":
                             try:
                                 # Read controller state
-                                data = await client.read_gatt_char(
-                                    "00008651-0000-1000-8000-00805f9b34fb"
-                                )
+                                data = await client.read_gatt_char(CHARACTERISTIC_UUID)
 
                                 # Parse data
                                 if self._controller.parse_data(data):
