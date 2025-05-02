@@ -25,8 +25,8 @@ class GameSirT1d:
         self.y = 0
         self.l1 = 0
         self.r1 = 0
-        self.select = 0  # C1 in original code
-        self.start = 0   # C2 in original code
+        self.c1 = 0
+        self.c2 = 0
         self.menu = 0
         
         # D-pad
@@ -66,8 +66,8 @@ class GameSirT1d:
         
         # Parse more buttons from byte 10
         buttons2 = data[10]
-        self.select = int(bool(buttons2 & 0x04))  # C1
-        self.start = int(bool(buttons2 & 0x08))   # C2
+        self.c1 = int(bool(buttons2 & 0x04))
+        self.c2 = int(bool(buttons2 & 0x08))
         
         # Parse D-pad from byte 11
         dpad = data[11]
@@ -84,7 +84,7 @@ class GameSirT1d:
             f"Joysticks: LX={self.lx}, LY={self.ly}, RX={self.rx}, RY={self.ry}\n"
             f"Triggers: L2={self.l2}, R2={self.r2}\n"
             f"Buttons: A={self.a}, B={self.b}, X={self.x}, Y={self.y}, "
-            f"L1={self.l1}, R1={self.r1}, Select={self.select}, Start={self.start}, Menu={self.menu}\n"
+            f"L1={self.l1}, R1={self.r1}, C1={self.c1}, C2={self.c2}, Menu={self.menu}\n"
             f"D-pad: Up={self.dpad_up}, Down={self.dpad_down}, Left={self.dpad_left}, Right={self.dpad_right}"
         )
     
