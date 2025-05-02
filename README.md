@@ -33,7 +33,7 @@ To get started, you need to install Python and the `djitellopy` library.
 ## Setup
 
 Depending on if you use STA/router-mode or AP/direct mode, make sure the `host` field in `tello.Tello(host="192.168.1.85")` is set correctly or omitted.
-For more information check [Dronelab - Router mode](tello.Tello(host="192.168.1.85")).
+For more information check [Dronelab - Router mode](https://dronelab.dev/posts/crash-the-tello/#using-router-mode).
 
 ### Connecting to the Tello Drone
 1. Turn on your Tello drone.
