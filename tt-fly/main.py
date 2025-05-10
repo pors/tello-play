@@ -9,7 +9,10 @@ from tello_simulator import TelloSimulator
 class TelloControllerApp:
     """Application for controlling a real Tello drone with GameSir controller."""
 
-    def __init__(self, host=None, use_simulator=False):
+    def __init__(self, controller_name, host=None, use_simulator=False):
+        # Add initialization status flag
+        self.initialized = False
+        
         # Initialize pygame
         pygame.init()
 
@@ -23,13 +26,15 @@ class TelloControllerApp:
         # Initialize controller
         print("Initializing GameSir T1d controller...")
         try:
-            self.controller = GameSirT1dPygame("Gamesir-T1d-39BD")
+            self.controller = GameSirT1dPygame(controller_name)
             if not self.controller.init():
                 print("Failed to initialize controller.")
                 self.controller = None
+                return
         except Exception as e:
             print(f"Failed to initialize controller: {e}")
             self.controller = None
+            return
 
         # Initialize drone (real or simulator)
         if use_simulator:
@@ -37,13 +42,25 @@ class TelloControllerApp:
         else:
             self.drone = TelloDrone(host)
 
-        self.drone.connect()
+        connected = self.drone.connect()
+
+        if not connected:
+            print("Failed to connect to the drone.")
+            return
 
         # Initialize flight controller
         self.flight_controller = FlightController(self.drone)
+        
+        # Mark initialization as successful
+        self.initialized = True
 
     def run(self):
         """Main application loop."""
+        # Check if properly initialized before running
+        if not self.initialized:
+            print("Cannot run: Application not properly initialized.")
+            return
+            
         running = True
         last_time = time.time()
 
@@ -102,8 +119,14 @@ class TelloControllerApp:
         pos = self.drone.get_position()
         rot = self.drone.get_rotation()
         bat = self.drone.get_battery()
+                    
+        # Debug the state check
+        flying = self.drone.get_is_flying()
+        #print(f"Display state check - get_is_flying()={flying}, tello.is_flying={self.drone.tello.is_flying}")
+        
+        # Use the CORRECT state
         state = "Flying" if self.drone.get_is_flying() else "Landed"
-
+        
         # Draw telemetry text
         lines = [
             f"Status: {state}",
@@ -131,6 +154,11 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
     parser.add_argument(
+        "--controller",
+        type=str,
+        help="Controller name (of the format: Gamesir-T1d-XXXX)",
+    )
+    parser.add_argument(
         "--sim", action="store_true", help="Use simulator instead of real drone"
     )
     parser.add_argument(
@@ -138,5 +166,5 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
 
-    app = TelloControllerApp(host=args.host, use_simulator=args.sim)
+    app = TelloControllerApp(controller_name=args.controller, host=args.host, use_simulator=args.sim)
     app.run()

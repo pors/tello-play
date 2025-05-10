@@ -82,6 +82,15 @@ class TelloSimulator:
         self.command_history.append(("land", time.time()))
         return True
 
+    def stop(self):
+        """Stop the drone."""
+        if not self.is_flying:
+            print("Simulator: Cannot stop, not flying")
+            return False
+
+        print("Simulator: Stopping...")
+        self.velocity = np.array([0.0, 0.0, 0.0, 0.0])
+
     def emergency(self):
         """Emergency stop - immediately stops motors and drops the drone."""
         print("Simulator: EMERGENCY STOP!")
