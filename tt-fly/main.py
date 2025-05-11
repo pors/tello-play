@@ -1,10 +1,13 @@
+import cv2
 import pygame
 import time
 import sys
+import numpy as np
 from flight_controller import FlightController
 from tello_drone import TelloDrone
 from gamesir_t1d import GameSirT1dPygame
 from tello_simulator import TelloSimulator
+
 
 class TelloControllerApp:
     """Application for controlling a real Tello drone with GameSir controller."""
@@ -12,16 +15,19 @@ class TelloControllerApp:
     def __init__(self, controller_name, host=None, use_simulator=False):
         # Add initialization status flag
         self.initialized = False
-        
+
         # Initialize pygame
         pygame.init()
 
-        # Set up a minimal display (can be expanded later)
-        self.screen_width, self.screen_height = 640, 480
+        # Set up a display that can accommodate video
+        self.screen_width, self.screen_height = 960, 720
         self.screen = pygame.display.set_mode((self.screen_width, self.screen_height))
         pygame.display.set_caption("Tello Drone Controller")
         self.font = pygame.font.Font(None, 24)
         self.clock = pygame.time.Clock()
+
+        # Create a rect for where the video will be displayed
+        self.video_rect = pygame.Rect(20, 150, 640, 480)
 
         # Initialize controller
         print("Initializing GameSir T1d controller...")
@@ -50,7 +56,12 @@ class TelloControllerApp:
 
         # Initialize flight controller
         self.flight_controller = FlightController(self.drone)
-        
+
+        # Frame counter for monitoring video stream
+        self.frame_count = 0
+        self.last_frame_time = time.time()
+        self.fps_stats = []
+
         # Mark initialization as successful
         self.initialized = True
 
@@ -60,7 +71,7 @@ class TelloControllerApp:
         if not self.initialized:
             print("Cannot run: Application not properly initialized.")
             return
-            
+
         running = True
         last_time = time.time()
 
@@ -86,7 +97,7 @@ class TelloControllerApp:
                 # Update drone state
                 self.drone.update(dt)
 
-                # Draw a simple display
+                # Draw the telemetry and video display
                 self.draw_telemetry()
 
                 # Cap at 60 FPS
@@ -112,27 +123,17 @@ class TelloControllerApp:
             sys.exit()
 
     def draw_telemetry(self):
-        """Draw basic telemetry display."""
+        """Draw telemetry and video display."""
         self.screen.fill((20, 20, 30))
 
         # Get drone data
-        pos = self.drone.get_position()
-        rot = self.drone.get_rotation()
         bat = self.drone.get_battery()
-                    
-        # Debug the state check
-        flying = self.drone.get_is_flying()
-        #print(f"Display state check - get_is_flying()={flying}, tello.is_flying={self.drone.tello.is_flying}")
-        
-        # Use the CORRECT state
         state = "Flying" if self.drone.get_is_flying() else "Landed"
-        
+
         # Draw telemetry text
         lines = [
             f"Status: {state}",
             f"Battery: {bat}%",
-            f"Position (est): X={pos[0]:.2f}m, Y={pos[1]:.2f}m, Z={pos[2]:.2f}m",
-            f"Rotation: {rot:.1f}°",
         ]
 
         # Add controller status
@@ -143,6 +144,51 @@ class TelloControllerApp:
         for i, line in enumerate(lines):
             text = self.font.render(line, True, (200, 200, 200))
             self.screen.blit(text, (20, 20 + i * 30))
+
+        # Display video frame if available
+        frame = self.drone.get_video_frame()
+        if frame is not None:
+            # Track FPS
+            self.frame_count += 1
+            now = time.time()
+            if now - self.last_frame_time >= 1.0:  # Calculate FPS every second
+                fps = self.frame_count / (now - self.last_frame_time)
+                self.fps_stats.append(fps)
+                if len(self.fps_stats) > 10:
+                    self.fps_stats.pop(0)
+                self.frame_count = 0
+                self.last_frame_time = now
+
+            # Convert numpy array to pygame surface
+            try:
+                # Ensure frame has the right format for pygame
+                frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+
+                # Create a PyGame surface
+                h, w = frame.shape[:2]
+                pygame_frame = pygame.Surface((w, h))
+                pygame.surfarray.blit_array(pygame_frame, np.swapaxes(frame, 0, 1))
+
+                # Scale if needed
+                if pygame_frame.get_size() != (
+                    self.video_rect.width,
+                    self.video_rect.height,
+                ):
+                    pygame_frame = pygame.transform.scale(
+                        pygame_frame, (self.video_rect.width, self.video_rect.height)
+                    )
+
+                self.screen.blit(pygame_frame, self.video_rect)
+            except Exception as e:
+                print(f"Error displaying frame: {e}")
+                # Draw a red border to indicate error
+                pygame.draw.rect(self.screen, (255, 0, 0), self.video_rect, 2)
+        else:
+            # Draw a placeholder for video
+            pygame.draw.rect(self.screen, (40, 40, 60), self.video_rect)
+            no_video = self.font.render("No Video Feed", True, (150, 150, 150))
+            text_rect = no_video.get_rect(center=self.video_rect.center)
+            self.screen.blit(no_video, text_rect)
 
         # Update display
         pygame.display.flip()
@@ -166,5 +212,7 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
 
-    app = TelloControllerApp(controller_name=args.controller, host=args.host, use_simulator=args.sim)
+    app = TelloControllerApp(
+        controller_name=args.controller, host=args.host, use_simulator=args.sim
+    )
     app.run()

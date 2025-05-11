@@ -18,10 +18,7 @@ class TelloDrone:
 
         self.last_command_time = time.time()
         self.is_connected = False
-        self.position = np.array(
-            [0.0, 0.0, 0.0]
-        )  # We'll estimate this  # TODO: use tello info
-        self.rotation = 0.0  # Estimated yaw # TODO: use tello info
+        self.frame_read = None
 
     def connect(self):
         """Connect to the physical drone."""
@@ -29,9 +26,41 @@ class TelloDrone:
         try:
             self.tello.connect()
             self.is_connected = True
-            # Initialize IMU/state
-            self.tello.streamon()  # TODO make sure it is not already on
+
             print(f"Battery: {self.tello.get_battery()}%")
+
+            # Make sure stream is off before turning it on
+            try:
+                self.tello.streamoff()
+                print("Stopped any existing video stream")
+            except Exception as e:
+                print(f"Note: {e}")
+
+            # Initialize frame reading with low quality settings
+            self.tello.set_video_resolution(
+                self.tello.RESOLUTION_480P
+            )  # TODO Try to use 720P
+            self.tello.set_video_fps(
+                self.tello.FPS_30
+            )  # TODO Lower FPS for reduced bandwidth => use app FR controller
+            self.tello.set_video_bitrate(
+                self.tello.BITRATE_4MBPS
+            )  # TODO Try lower bitrate
+
+            # Now turn on the stream
+            self.tello.streamon()
+
+            # Add a delay to allow stream initialization
+            time.sleep(1.0)
+
+            # Get the frame reader
+            self.frame_read = self.tello.get_frame_read()
+
+            # Add another delay to ensure frame reader is ready
+            time.sleep(0.5)
+
+            print("Video stream initialized successfully")
+
             return True
         except Exception as e:
             print(f"Connection failed: {e}")
@@ -42,7 +71,7 @@ class TelloDrone:
         return self.tello.is_flying
 
     def takeoff(self):
-        """Execute takeoff on the real drone."""
+        """Execute takeoff on the drone."""
         if not self.is_connected:
             print("Cannot takeoff, not connected")
             return False
@@ -91,14 +120,13 @@ class TelloDrone:
         try:
             print("EMERGENCY STOP!")
             self.tello.emergency()
-            self.position[2] = 0.0  # TODO: use tello info
             return True
         except Exception as e:
             print(f"Emergency command failed: {e}")
             return False
 
     def send_rc_control(self, left_right, forward_backward, up_down, yaw):
-        """Send RC controls to the real drone."""
+        """Send RC controls to the drone."""
         if not self.tello.is_flying:
             print("Cannot send RC commands, not flying")
             return False
@@ -108,31 +136,10 @@ class TelloDrone:
 
             self.last_command_time = time.time()
 
-            # TODO Update our position estimate
-            # (This is just a basic estimation, real drones would use state feedback)
             return True
         except Exception as e:
             print(f"RC command failed: {e}")
             return False
-
-    def get_position(self):
-        """Get estimated position of the drone."""
-        # For a real drone, you'd compute this from sensor data
-        # This is just a placeholder - real implementation would be more complex
-        return self.position.copy()
-
-    def get_rotation(self):
-        """Get estimated yaw of the drone."""
-        try:
-            # Try to get actual yaw from the drone
-            # This only works in newer firmware versions
-            state = self.tello.get_current_state()
-            if "yaw" in state:
-                self.rotation = float(state["yaw"])
-            return self.rotation
-        except:
-            # Fall back to our estimate if failed
-            return self.rotation
 
     def get_battery(self):
         """Get battery level."""
@@ -141,19 +148,27 @@ class TelloDrone:
         except:
             return 0
 
+    def get_video_frame(self):
+        """Get the current video frame from the drone."""
+        if self.frame_read is None:
+            return None
+
+        try:
+            frame = self.frame_read.frame
+            if frame is None or frame.size == 0:
+                print("Warning: Received empty frame")
+                return None
+            return frame
+        except Exception as e:
+            print(f"Error getting video frame: {e}")
+            return None
+
     def update(self, dt):
         """Update drone state estimates."""
-        # For real drone, we'd update position estimates based on sensor data
-        # This method interfaces with your FlightController
+        # This method interfaces with our FlightController
         if self.is_connected and self.tello.is_flying:
             try:
                 # Get state updates from the drone when possible
                 state = self.tello.get_current_state()
-
-                # Real implementation would update position estimates
-                # from accelerometer, visual odometry, etc.
-
-                # Simple placeholder for position estimation
-                pass
             except Exception as e:
                 print(f"State update error: {e}")
